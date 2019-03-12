@@ -6,7 +6,7 @@
 	By PxCode
 	Role : Main Game Functions Definitions
 	Created on : 09/03/2019
-	Last modified on : 11/03/2019
+	Last modified on : 12/03/2019
 */
 
 #include <stdio.h>
@@ -24,6 +24,7 @@ int play(SDL_Renderer *renderer, RESOURCES *resources) {
 	SDL_bool 
 		quit_requested = SDL_FALSE,
 		won = SDL_FALSE;
+	SDL_Color white_color = { 255, 255, 255 };
 	SDL_Texture
 		*mario[4] = { NULL },
 		*actualMario = NULL;
@@ -126,7 +127,7 @@ int play(SDL_Renderer *renderer, RESOURCES *resources) {
 		if (won)
 			SDL_ShowSimpleMessageBox(
 				SDL_MESSAGEBOX_INFORMATION,
-				"Congradulations",
+				"Congratulations",
 				"Well done!\nYou have won the level!",
 				NULL);
 	}
@@ -276,7 +277,11 @@ SDL_bool checkCheckpoints(enum BLOCK map[NB_BLOCKS_WIDTH][NB_BLOCKS_HEIGHT]) {
 }
 
 void initialiserResources(RESOURCES *resources) {
-	resources->menu = NULL;
+	resources->menu_bg = NULL;
+	for (int i = 0; i < MENU_ITEMS_COUNT; i++){
+		resources->menu_items[i] = NULL;
+		resources->menu_items_outline[i] = NULL;
+	}
 	resources->editorBG = NULL;
 	resources->levelsBG = NULL;
 	resources->grid = NULL;
@@ -297,8 +302,13 @@ void initialiserResources(RESOURCES *resources) {
 }
 
 void loadResources(SDL_Renderer *renderer, RESOURCES *resources) {
-
-	resources->menu = IMG_LoadTexture(renderer, "resources/images/menu.jpg");
+	resources->menu_bg = IMG_LoadTexture(renderer, "resources/images/menu_bg.png");
+	resources->menu_items[0] = IMG_LoadTexture(renderer, "resources/images/menu_item1.png");
+	resources->menu_items[1] = IMG_LoadTexture(renderer, "resources/images/menu_item2.png");
+	resources->menu_items[2] = IMG_LoadTexture(renderer, "resources/images/menu_item3.png");
+	resources->menu_items_outline[0] = IMG_LoadTexture(renderer, "resources/images/menu_item1_outline.png");
+	resources->menu_items_outline[1] = IMG_LoadTexture(renderer, "resources/images/menu_item2_outline.png");
+	resources->menu_items_outline[2] = IMG_LoadTexture(renderer, "resources/images/menu_item3_outline.png");
 	resources->editorBG = IMG_LoadTexture(renderer, "resources/images/editorBG.jpg");
 	resources->levelsBG = IMG_LoadTexture(renderer, "resources/images/editorBG.jpg");
 	resources->grid = IMG_LoadTexture(renderer, "resources/images/grid.png");
@@ -316,13 +326,19 @@ void loadResources(SDL_Renderer *renderer, RESOURCES *resources) {
 	resources->cursor_box = IMG_LoadTexture(renderer, "resources/images/cursor_box.png");
 	resources->cursor_box_ok = IMG_LoadTexture(renderer, "resources/images/cursor_box_ok.png");
 	resources->cursor_delete = IMG_LoadTexture(renderer, "resources/images/cursor_delete.png");
+
+	resources->mainFont = TTF_OpenFont("resources/fonts/Players.ttf", MAIN_FONT_SIZE);
 	
 	printf("All resources has been loaded!\n");
 
 }
 
 void freeResources(RESOURCES *resources) {
-	SDL_DestroyTexture(resources->menu);
+	SDL_DestroyTexture(resources->menu_bg);
+	for (int i = 0; i < MENU_ITEMS_COUNT; i++) {
+		SDL_DestroyTexture(resources->menu_items[i]);
+		SDL_DestroyTexture(resources->menu_items_outline[i]);
+	}
 	SDL_DestroyTexture(resources->editorBG);
 	SDL_DestroyTexture(resources->levelsBG);
 	SDL_DestroyTexture(resources->grid);
@@ -340,4 +356,6 @@ void freeResources(RESOURCES *resources) {
 	SDL_DestroyTexture(resources->cursor_checkpoint);
 	SDL_DestroyTexture(resources->cursor_box);
 	SDL_DestroyTexture(resources->cursor_box_ok);
+	TTF_CloseFont(resources->mainFont);
+	resources->mainFont = NULL;
 }
