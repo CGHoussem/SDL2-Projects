@@ -6,7 +6,7 @@
 	By PxCode
 	Role : Main Game Program
 	Created on : 08/03/2019
-	Last modified on : 12/03/2019
+	Last modified on : 13/03/2019
 */
 
 #include <stdio.h>
@@ -63,7 +63,7 @@ int main(int argc, char** argv) {
 		exit(EXIT_FAILURE);
 	}
 
-	if (!IMG_Init(image_flags)) {
+	if (IMG_Init(image_flags) == 0) {
 		fprintf(stderr, "Error initializing SDL_image: %s\n", IMG_GetError());
 		SDL_DestroyRenderer(renderer);
 		SDL_DestroyWindow(window);
@@ -127,6 +127,7 @@ int main(int argc, char** argv) {
 		currentTime = SDL_GetTicks();
 		if (currentTime - previousTime > 30) {
 			SDL_RenderClear(renderer);
+			
 			SDL_RenderCopy(renderer, resources.menu_bg, NULL, NULL);
 			for (int i = 0; i < MENU_ITEMS_COUNT; i++) {
 				if (menu_item_selected == i)

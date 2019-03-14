@@ -6,7 +6,7 @@
 	By PxCode
 	Role : Editor Functions Definitions
 	Created on : 09/03/2019
-	Last modified on : 10/03/2019
+	Last modified on : 13/03/2019
 */
 
 #include <stdio.h>
@@ -17,7 +17,7 @@
 #include "files.h"
 #include "editor.h"
 
-int editor(SDL_Renderer *renderer, RESOURCES *resources) {
+SDL_bool editor(SDL_Renderer *renderer, RESOURCES *resources) {
 	int currentBlock,
 		currentTime = 0,
 		previousTime = 0;
@@ -78,7 +78,7 @@ int editor(SDL_Renderer *renderer, RESOURCES *resources) {
 						// save level
 						case SDLK_s:
 							if (saveLevel(new_map))
-								SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Level Editor", "Level has been saved!", NULL);
+								SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Level Editor", "A new level has been saved!", NULL);
 							break;
 						// quit level editor
 						case SDLK_q:

@@ -6,7 +6,7 @@
 	By PxCode
 	Role : define constants for the game
 	Created on : 08/03/2019
-	Last modified on : 12/03/2019
+	Last modified on : 13/03/2019
 */
 
 #ifndef CONSTANTS_H
@@ -21,7 +21,9 @@
 #define	WINDOW_WIDTH		BLOCK_SIZE * NB_BLOCKS_WIDTH
 #define WINDOW_HEIGHT		BLOCK_SIZE * NB_BLOCKS_HEIGHT
 #define MENU_ITEMS_COUNT	3
-#define MAIN_FONT_SIZE		32
+#define MAIN_FONT_SIZE		24
+#define UI_LEVEL_POS_X		17
+#define UI_LEVEL_POS_Y		17
 
 enum DIRECTION {UP, DOWN, LEFT, RIGHT};
 enum BLOCK {EMPTY, WALL, BOX, BOX_OK, CHECKPOINT, MARIO};

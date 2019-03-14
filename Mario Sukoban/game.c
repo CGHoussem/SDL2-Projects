@@ -6,7 +6,7 @@
 	By PxCode
 	Role : Main Game Functions Definitions
 	Created on : 09/03/2019
-	Last modified on : 12/03/2019
+	Last modified on : 14/03/2019
 */
 
 #include <stdio.h>
@@ -17,33 +17,61 @@
 #include "files.h"
 #include "game.h"
 
-int play(SDL_Renderer *renderer, RESOURCES *resources) {
-	int previousTime = 0, currentTime = 0;
+SDL_bool play(SDL_Renderer *renderer, RESOURCES *resources) {
 	enum BLOCK map[NB_BLOCKS_WIDTH][NB_BLOCKS_HEIGHT] = { EMPTY };
-	SDL_Rect pos, marioPos;
-	SDL_bool 
+	SDL_bool
 		quit_requested = SDL_FALSE,
-		won = SDL_FALSE;
-	SDL_Color white_color = { 255, 255, 255 };
+		levelWon = SDL_FALSE,
+		gameWon = SDL_FALSE;
+	SDL_Surface
+		*ui_level_s = NULL;
 	SDL_Texture
 		*mario[4] = { NULL },
-		*actualMario = NULL;
+		*actualMario = NULL,
+		*ui_level_t = NULL;
+	SDL_Rect pos, marioPos, ui_level_rect;
+	SDL_Color white_color = { 255, 255, 255 };
+	Uint32 previousTime = 0, currentTime = 0;
+	Uint8 levelIndex = 0;
 
+	// Initializing
 	mario[UP] = resources->marioUp;
 	mario[RIGHT] = resources->marioRight;
 	mario[DOWN] = resources->marioDown;
 	mario[LEFT] = resources->marioLeft;
-	
 	actualMario = mario[DOWN];
 	pos.w = pos.h = marioPos.w = marioPos.h = BLOCK_SIZE;
+	ui_level_rect.x = UI_LEVEL_POS_X;
+	ui_level_rect.y = UI_LEVEL_POS_Y;
 
-	if (!loadLevel(map)) {
-		fprintf(stderr, "Error loading the level!\n");
+
+	if (!loadLevel(map, levelIndex)) {
+		fprintf(stderr, "Error loading level %d!\n", levelIndex);
 		return SDL_FALSE;
 	}
 
+	ui_level_s = TTF_RenderText_Solid(resources->mainFont, "Level 1", white_color);
+	if (ui_level_s == NULL) {
+		fprintf(stderr, "Error creating level_s: %s\n", SDL_GetError());
+		return SDL_FALSE;
+	}
+	ui_level_t = SDL_CreateTextureFromSurface(renderer, ui_level_s);
+	if (ui_level_t == NULL) {
+		fprintf(stderr, "Error creating level_t: %s\n", SDL_GetError());
+		return SDL_FALSE;
+	}
+	SDL_FreeSurface(ui_level_s);
+	if (SDL_QueryTexture(ui_level_t, NULL, NULL, &ui_level_rect.w, &ui_level_rect.h) != 0) {
+		SDL_DestroyTexture(ui_level_t);
+		ui_level_t = NULL;
+		fprintf(stderr, "Error getting level_t dimensions: %s\n", SDL_GetError());
+		return SDL_FALSE;
+	}
+	ui_level_rect.y -= ui_level_rect.h / 2;
+
 	SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "How To Play", "Goal: Move the box(es) to checkpoint(s)!", NULL);
 
+	// Search spawn position
 	for (int i = 0; i < NB_BLOCKS_WIDTH; i++) {
 		for (int j = 0; j < NB_BLOCKS_HEIGHT; j++) {
 			if (map[i][j] == MARIO) {
@@ -54,8 +82,51 @@ int play(SDL_Renderer *renderer, RESOURCES *resources) {
 		}
 	}
 
-	while (!quit_requested && !won) {
+	// Game loop
+	while (!quit_requested && !gameWon) {
 		SDL_Event event;
+
+		if (levelWon) {
+			gameWon = checkLevels(levelIndex);
+			if (gameWon) {
+				SDL_ShowSimpleMessageBox(
+					SDL_MESSAGEBOX_INFORMATION,
+					"Congratulations",
+					"Good job!\nYou have completed all the levels!",
+					NULL);
+			}
+			else {
+				SDL_ShowSimpleMessageBox(
+					SDL_MESSAGEBOX_INFORMATION,
+					"Level Won",
+					"Well done!\nYou have won the level!",
+					NULL);
+				if (!loadLevel(map, ++levelIndex)) {
+					fprintf(stderr, "Error loading level %d!\n", levelIndex);
+					return SDL_FALSE;
+				}
+				char levelStr[10] = "Level ";
+				char levelIndexStr[2];
+				SDL_itoa(levelIndex + 1, levelIndexStr, 5);
+				SDL_strlcat(levelStr, levelIndexStr, sizeof(levelStr));
+				ui_level_s = TTF_RenderText_Solid(resources->mainFont, levelStr, white_color);
+				ui_level_t = SDL_CreateTextureFromSurface(renderer, ui_level_s);
+				SDL_FreeSurface(ui_level_s);
+				levelWon = SDL_FALSE;
+
+				// Search spawn position
+				for (int i = 0; i < NB_BLOCKS_WIDTH; i++) {
+					for (int j = 0; j < NB_BLOCKS_HEIGHT; j++) {
+						if (map[i][j] == MARIO) {
+							marioPos.x = BLOCK_SIZE * i;
+							marioPos.y = BLOCK_SIZE * j;
+							map[i][j] = EMPTY;
+						}
+					}
+				}
+			}
+		}
+
 		while (SDL_PollEvent(&event)) {
 			switch (event.type) {
 				case SDL_QUIT:
@@ -69,28 +140,29 @@ int play(SDL_Renderer *renderer, RESOURCES *resources) {
 						case SDLK_RIGHT:  
 							actualMario = mario[RIGHT];
 							if (movePlayer(map, &marioPos, RIGHT) && checkCheckpoints(map))
-								won = SDL_TRUE;
+								levelWon = SDL_TRUE;
 							break;
 						case SDLK_LEFT:
 							actualMario = mario[LEFT];
 							if (movePlayer(map, &marioPos, LEFT) && checkCheckpoints(map))
-								won = SDL_TRUE;
+								levelWon = SDL_TRUE;
 							break;
 						case SDLK_UP:
 							actualMario = mario[UP];
 							if (movePlayer(map, &marioPos, UP) && checkCheckpoints(map))
-								won = SDL_TRUE;
+								levelWon = SDL_TRUE;
 							break;
 						case SDLK_DOWN:
 							actualMario = mario[DOWN];
 							if (movePlayer(map, &marioPos, DOWN) && checkCheckpoints(map))
-								won = SDL_TRUE;
+								levelWon = SDL_TRUE;
 							break;
 					}
 					break;
 			}
 		}
 
+		// Rendering
 		currentTime = SDL_GetTicks();
 		if (currentTime - previousTime > 30) {
 			SDL_RenderClear(renderer);
@@ -116,6 +188,8 @@ int play(SDL_Renderer *renderer, RESOURCES *resources) {
 				}
 			}
 			SDL_RenderCopy(renderer, actualMario, NULL, &marioPos);
+			// UI
+			SDL_RenderCopy(renderer, ui_level_t, NULL, &ui_level_rect);
 			SDL_RenderPresent(renderer);
 
 			previousTime = currentTime;
@@ -123,13 +197,6 @@ int play(SDL_Renderer *renderer, RESOURCES *resources) {
 		else {
 			SDL_Delay(30 - (currentTime - previousTime));
 		}
-
-		if (won)
-			SDL_ShowSimpleMessageBox(
-				SDL_MESSAGEBOX_INFORMATION,
-				"Congratulations",
-				"Well done!\nYou have won the level!",
-				NULL);
 	}
 
 	return SDL_TRUE;
@@ -143,7 +210,7 @@ SDL_bool movePlayer(enum BLOCK map[NB_BLOCKS_WIDTH][NB_BLOCKS_HEIGHT], SDL_Rect 
 			j = playerPos->y / BLOCK_SIZE;
 			if (map[i][j] == EMPTY || map[i][j] == CHECKPOINT)
 				playerPos->x += BLOCK_SIZE;
-			else if (map[i][j] == BOX)
+			else if (map[i][j] == BOX || map[i][j] == BOX_OK)
 				return moveBox(map, playerPos, dir);
 			else
 				printf("Mouvement Blocked!\n");
@@ -153,7 +220,7 @@ SDL_bool movePlayer(enum BLOCK map[NB_BLOCKS_WIDTH][NB_BLOCKS_HEIGHT], SDL_Rect 
 			j = playerPos->y / BLOCK_SIZE;
 			if (map[i][j] == EMPTY || map[i][j] == CHECKPOINT)
 				playerPos->x -= BLOCK_SIZE;
-			else if (map[i][j] == BOX)
+			else if (map[i][j] == BOX || map[i][j] == BOX_OK)
 				return moveBox(map, playerPos, dir);
 			else
 				printf("Mouvement Blocked!\n");
@@ -163,7 +230,7 @@ SDL_bool movePlayer(enum BLOCK map[NB_BLOCKS_WIDTH][NB_BLOCKS_HEIGHT], SDL_Rect 
 			j = (playerPos->y - BLOCK_SIZE) / BLOCK_SIZE;
 			if (map[i][j] == EMPTY || map[i][j] == CHECKPOINT)
 				playerPos->y -= BLOCK_SIZE;
-			else if (map[i][j] == BOX)
+			else if (map[i][j] == BOX || map[i][j] == BOX_OK)
 				return moveBox(map, playerPos, dir);
 			else
 				printf("Mouvement Blocked!\n");
@@ -173,7 +240,7 @@ SDL_bool movePlayer(enum BLOCK map[NB_BLOCKS_WIDTH][NB_BLOCKS_HEIGHT], SDL_Rect 
 			j = (playerPos->y + BLOCK_SIZE) / BLOCK_SIZE;
 			if (map[i][j] == EMPTY || map[i][j] == CHECKPOINT)
 				playerPos->y += BLOCK_SIZE;
-			else if (map[i][j] == BOX)
+			else if (map[i][j] == BOX || map[i][j] == BOX_OK)
 				return moveBox(map, playerPos, dir);
 			else
 				printf("Mouvement Blocked!\n");
@@ -194,12 +261,22 @@ SDL_bool moveBox(enum BLOCK map[NB_BLOCKS_WIDTH][NB_BLOCKS_HEIGHT], SDL_Rect *pl
 			{
 				playerPos->x += BLOCK_SIZE;
 				map[i + 1][j] = map[i][j];
-				map[i][j] = EMPTY;
+				if (map[i][j] == BOX_OK){
+					map[i][j] = CHECKPOINT;
+					map[i + 1][j] = BOX;
+				}
+				else
+					map[i][j] = EMPTY;
 			}
 			else if (map[i + 1][j] == CHECKPOINT) {
 				playerPos->x += BLOCK_SIZE;
 				map[i + 1][j] = BOX_OK;
-				map[i][j] = EMPTY;
+				if (map[i][j] == BOX_OK) {
+					map[i][j] = CHECKPOINT;
+					map[i + 1][j] = BOX;
+				}
+				else
+					map[i][j] = EMPTY;
 				return SDL_TRUE;
 			}
 			else
@@ -212,12 +289,22 @@ SDL_bool moveBox(enum BLOCK map[NB_BLOCKS_WIDTH][NB_BLOCKS_HEIGHT], SDL_Rect *pl
 			{
 				playerPos->x -= BLOCK_SIZE;
 				map[i - 1][j] = map[i][j];
-				map[i][j] = EMPTY;
+				if (map[i][j] == BOX_OK) {
+					map[i][j] = CHECKPOINT;
+					map[i + 1][j] = BOX;
+				}
+				else
+					map[i][j] = EMPTY;
 			}
 			else if (map[i - 1][j] == CHECKPOINT) {
 				playerPos->x -= BLOCK_SIZE;
 				map[i - 1][j] = BOX_OK;
-				map[i][j] = EMPTY;
+				if (map[i][j] == BOX_OK) {
+					map[i][j] = CHECKPOINT;
+					map[i - 1][j] = BOX;
+				}
+				else
+					map[i][j] = EMPTY;
 				return SDL_TRUE;
 			}
 			else
@@ -226,16 +313,26 @@ SDL_bool moveBox(enum BLOCK map[NB_BLOCKS_WIDTH][NB_BLOCKS_HEIGHT], SDL_Rect *pl
 		case UP:
 			i = playerPos->x / BLOCK_SIZE;
 			j = (playerPos->y - BLOCK_SIZE) / BLOCK_SIZE;
-			if (map[i][j-1] == EMPTY)
+			if (map[i][j - 1] == EMPTY)
 			{
 				playerPos->y -= BLOCK_SIZE;
 				map[i][j-1] = map[i][j];
-				map[i][j] = EMPTY;
+				if (map[i][j] == BOX_OK) {
+					map[i][j] = CHECKPOINT;
+					map[i][j - 1] = BOX;
+				}
+				else
+					map[i][j] = EMPTY;
 			}
 			else if (map[i][j - 1] == CHECKPOINT) {
 				playerPos->y -= BLOCK_SIZE;
 				map[i][j - 1] = BOX_OK;
-				map[i][j] = EMPTY;
+				if (map[i][j] == BOX_OK) {
+					map[i][j] = CHECKPOINT;
+					map[i][j - 1] = BOX;
+				}
+				else
+					map[i][j] = EMPTY;
 				return SDL_TRUE;
 			}
 			else
@@ -248,12 +345,22 @@ SDL_bool moveBox(enum BLOCK map[NB_BLOCKS_WIDTH][NB_BLOCKS_HEIGHT], SDL_Rect *pl
 			{
 				playerPos->y += BLOCK_SIZE;
 				map[i][j + 1] = map[i][j];
-				map[i][j] = EMPTY;
+				if (map[i][j] == BOX_OK) {
+					map[i][j] = CHECKPOINT;
+					map[i][j + 1] = BOX;
+				}
+				else
+					map[i][j] = EMPTY;
 			}
 			else if (map[i][j + 1] == CHECKPOINT) {
 				playerPos->y += BLOCK_SIZE;
 				map[i][j + 1] = BOX_OK;
-				map[i][j] = EMPTY;
+				if (map[i][j] == BOX_OK) {
+					map[i][j] = CHECKPOINT;
+					map[i][j + 1] = BOX;
+				}
+				else
+					map[i][j] = EMPTY;
 				return SDL_TRUE;
 			}
 			else
